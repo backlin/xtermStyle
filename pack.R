@@ -2,13 +2,13 @@ setwd("~/Documents/R/egna paket/xtermStyle")
 library("roxygen2")
 options(useFancyQuotes = FALSE)
 
-
+roxygen.update.description()
 roxygenize("xtermStyle", "xtermStyle.roxygen", unlink.target = TRUE)
-system("rm -rf xtermStyle.roxygen/inst") # Empty folder that will generate check warning
-system("R CMD check xtermStyle.roxygen") # Check package
-system("R CMD INSTALL xtermStyle.roxygen") # Install package
+system("rm -rf xtermStyle.roxygen/inst")
+system("R CMD check xtermStyle.roxygen")
 
-system("R CMD build xtermStyle.roxygen") # Build package
+system("R CMD INSTALL xtermStyle.roxygen")
+system("R CMD build xtermStyle.roxygen")
 
 
 # When ready to publish to CRAN
