@@ -181,7 +181,7 @@ style.auto <- function(x, ...){
         else if(is.logical(x)) "logical"
         else if(is.list(x)) "list"
         else if(is.function(x)) "function"
-        else NA
+        else ""
     ]
 
     ld <- max(1, min(3, length(dim(x))))
