@@ -1,6 +1,5 @@
-/xtermStyle.roxygen
-/xtermStyle.roxygen.Rcheck
-xtermStyle_*.tar.gz
+xtermStyle.Rcheck
+*.tar.gz
 *.Rapp.history
 *~
 *.swp

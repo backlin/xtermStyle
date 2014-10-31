@@ -1,0 +1,193 @@
+.onLoad <- function(lib, pkg){
+    sn <- tolower(Sys.info()["sysname"])
+    term <- tolower(Sys.getenv("TERM"))
+    if(term %in% c("ansi", "apple_terminal")){
+        options(style.mode = "ansi")
+    } else if(sn == "windows" || term == "") {
+        # RStudio also ends up here
+        options(style.mode = "off")
+    } else {
+        # Presumably linux or unix
+        options(style.mode = "xterm-256color")
+    }
+}
+
+#' Color termnal output
+#'
+#' Talk about the different options. style.mode, style.palette.
+#' 
+#' @param ... Sent to \code{\link{cat}}.
+#' @param fg Foreground color i.e. color of the text. Can be any number in
+#'   [0, 255] or a string such as \code{"grey"} or \code{"dark red"} (for the
+#'   basic 16 colors).
+#' @param bg Background color. Takes the same values as \code{fg}.
+#' @param font A vector containg any combination of the following font styles:
+#'   \code{"normal"}, \code{"bold"}, \code{"underline"},
+#'   \code{"blink"} (renders as bold on most terminals), \code{"inverse"}.
+#'   Note that these may not be rendered on all terminals.
+#' @param mode Escape code mode.
+#' @return Nothing, sends all output to \code{\link{cat}}.
+#' @author Christofer \enc{Bäcklin}{Backlin}
+#' @seealso style
+#' @examples
+#' style("Blue suede shoes\n", bg="blue")
+#' style(fg="red")
+#' cat("everything is red now!")
+#' style(NULL)
+#' cat("but not anymore!")
+#' @author Christofer \enc{Bäcklin}{Backlin}
+#' @export
+style <- function(..., fg=NA, bg=NA, font=NA, mode=c("xterm-256color", "ansi", "off")) {
+    mode <- if(missing(mode)){
+        getOption("style.mode", "xterm-256color")
+    } else {
+        match.arg(mode)
+    }
+    if(mode == "off"){
+        if(!missing(...)) structure(paste(...), class="xtermStyle")
+        return(invisible())
+    }
+
+    named.colors <- switch(mode,
+        `ansi` = c("black", "red", "green", "yellow", "blue", "magenta", "cyan", "white"),
+        `xterm-256color` = c("black", "dark red", "dark green", "dark yellow",
+                             "dark blue", "dark magenta", "dark cyan", "grey",
+                             "dark grey", "red", "green", "yellow", "blue",
+                             "magenta", "cyan", "white", "white"),
+        character(0)
+    )
+    if(is.character(fg)) fg <- match(fg, named.colors)-1
+    if(is.character(bg)) bg <- match(bg, named.colors)-1
+
+    fonts <- c(normal=0, bold=1, underline=4, underscore=4, blink=5, inverse=7)
+    if(is.character(font)) font <- fonts[font]
+
+    if(mode == "xterm-256color"){
+        escape.str <- c(
+            if(!is.na(fg)) sprintf("\033[38;5;%im", fg) else NULL,
+            if(!is.na(bg)) sprintf("\033[48;5;%im", bg) else NULL
+        )
+    } else if(mode == "ansi"){
+        xterm256.to.ansi <- function(x){
+            if(x < 16){
+                x %% 8
+            } else if(x < 232){
+                binary.color <- round( c((x-16) %% 6, floor((x-16) %% 36 / 6), floor((x-16) / 36)) / 5)
+                # Correspons to blue, green, red
+                sum(c(4,2,1)*binary.color)
+            } else {
+                7 * (fg > 243)
+            }
+        }
+        escape.str <- c(
+            if(!is.na(fg)) sprintf("\033[%im", 30 + xterm256.to.ansi(fg)) else NULL,
+            if(!is.na(bg)) sprintf("\033[%im", 40 + xterm256.to.ansi(bg)) else NULL
+        )
+    }
+    if(!is.na(font)) escape.str <- c(escape.str, sprintf("\033[%im", font))
+
+    out <- paste(escape.str, collapse="")
+    if(missing(...)){
+        # Make the settings stick
+        options(style.mode = mode)
+    } else {
+        out <- sprintf("%s%s\033[0m", out, paste(...))
+    }
+    structure(out, class="xtermStyle")
+}
+#' @export
+#' @rdname style
+style.clear <- function(...) style("", ...)
+#' @export
+#' @rdname style
+style.off <- function() style(mode="off")
+
+print.xtermStyle <- function(x, ...){
+    cat(x)
+}
+
+#' Define the palette for auto-styling
+#'
+#' @param x Palette name or definition.
+#' @return Nothing, sets the approprite \code{\link{options}} variables.
+#' @seealso style.auto
+#' @author Christofer \enc{Bäcklin}{Backlin}
+#' @export
+style.palette <- function(x=c("dark", "light")){
+    if(missing(x)) x <- match.arg(x)
+    if(is.character(x)){
+        options(style.palette = switch(x,
+            dark = list(
+                fg = c(
+                    null = 246,    # grey
+                    character = 2, # green
+                    numeric = 6,   # cyan
+                    factor = 5,    # magenta
+                    logical = 3,   # yellow
+                    list = 1,      # red
+                    `function` = 4 # blue
+                ),
+                bg = c(
+                    scalar = NA,
+                    vector = 255,
+                    matrix = 195,
+                    array = 224
+                )
+            ),
+            light = list(
+                fg = c(
+                    null = 236,     # Dark grey
+                    character = 10, # green
+                    numeric = 14,   # cyan
+                    factor = 13,    # magenta
+                    logical = 11,   # yellow
+                    list = 9,       # red
+                    `function` = 33 # blue
+                ),
+                bg = c(
+                    scalar = NA,
+                    vector = 235,
+                    matrix = 18,
+                    array = 88
+                )
+            ),
+            list(fg=character(0), bg=character(0)) # Invalid palette name
+        ))
+    } else if(is.list(x)){
+        options(style.palette = x)  # The user gave his/her own palette
+    } else {
+        stop("Invalid palette")
+    }
+}
+
+#' Automatic styling according to object properties.
+#'
+#' @param x Object to decide formatting from.
+#' @param \dots Sent to \code{\link{style}}.
+#' @return See \code{\link{style}}.
+#' @seealso style, style.palette
+#' @author Christofer \enc{Bäcklin}{Backlin}
+#' @export
+style.auto <- function(x, ...){
+    if(is.null(getOption("style.palette", NULL)))
+        style.palette("dark")
+    pal <- getOption("style.palette")
+    
+    fg <- pal$fg[
+        if(is.null(x)) "null"
+        else if(is.character(x)) "character"
+        else if(is.numeric(x)) "numeric"
+        else if(is.factor(x)) "factor"
+        else if(is.logical(x)) "logical"
+        else if(is.list(x)) "list"
+        else if(is.function(x)) "function"
+        else NA
+    ]
+
+    ld <- max(1, min(3, length(dim(x))))
+    bg <- pal$bg[switch(ld, if(length(x) > 1) "vector" else "scalar", "matrix", "array")]
+
+    style(..., fg=fg, bg=bg)
+}
+
+
