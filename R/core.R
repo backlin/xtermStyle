@@ -102,6 +102,13 @@ style.clear <- function(...) style("", ...)
 #' @rdname style
 style.off <- function() style(mode="off")
 
+#' Print a style object
+#'
+#' @param x \code{\link{style}} object.
+#' @param ... Ignored, kept for S3 consistency.
+#' @seealso style
+#' @author Christofer \enc{Bäcklin}{Backlin}
+#' @export
 print.xtermStyle <- function(x, ...){
     cat(x)
 }
@@ -132,7 +139,10 @@ style.palette <- function(x=c("dark", "light")){
                     vector = 255,
                     matrix = 195,
                     array = 224
-                )
+                ),
+                levels = xterm.pal()$paired[c(FALSE, TRUE)],
+                range = xterm.pal()$DownUp,
+                logical = xterm.pal()$Accent[c(5,3)]
             ),
             light = list(
                 fg = c(
@@ -149,7 +159,10 @@ style.palette <- function(x=c("dark", "light")){
                     vector = 235,
                     matrix = 18,
                     array = 88
-                )
+                ),
+                levels = xterm.pal()$paired[c(TRUE, FALSE)],
+                range = xterm.pal()$long,
+                logical = xterm.pal()$Accent[2:1]
             ),
             list(fg=character(0), bg=character(0)) # Invalid palette name
         ))

@@ -27,7 +27,7 @@ fruits <- factor(sample(6, size=30, replace=TRUE, freqs/sum(freqs)),
                  labels=c("apple", "grapes", "banana", "lemon",
                           "blueberry", "raspberry"))
 for(i in 1:length(fruits))
-    style(fruits[i], "\\n", fg=pal[fruits[i]])
+    cat(style(fruits[i], "\\n", fg=pal[fruits[i]]))
 }
 \author{
 Christofer \enc{Bäcklin}{Backlin}

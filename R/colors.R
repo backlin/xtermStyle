@@ -17,65 +17,69 @@
 #' @export
 display.xterm.colors <- function(perm=1:3) {
     my.mode <- getOption("style.mode")
-    ## 16 ANSI colours
-    for(i in 0:1) {
-        for(j in 0:7){
-            style(fg = 8 * as.numeric(i == 0 & j == 0), bg = i * 8 + j, mode="xterm-256color")
-            cat(sprintf("%4i", j*8+i))
+    tryCatch({
+        ## 16 ANSI colours
+        for(i in 0:1) {
+            for(j in 0:7){
+                cat(style(fg = 8 * as.numeric(i == 0 & j == 0), bg = i * 8 + j, mode="xterm-256color"))
+                cat(sprintf("%4i", j*8+i))
+            }
+            style.clear()
+            cat("\n")
         }
-        style.clear()
         cat("\n")
-    }
-    cat("\n")
-    
-    ## 216 Web colours
-    color.cube <- aperm(array(16:231, c(6,6,6)), perm=perm)
-    for(i in 1:6^3){
-        x <- (i-1) %% 6 + 1
-        y <- floor((i-1)%%72 / 12) + 1
-        z <- 2*floor((i-1)/72) + ((i-1)%%12 >= 6) + 1
-        my.color = color.cube[x,y,z]
+        
+        ## 216 Web colours
+        color.cube <- aperm(array(16:231, c(6,6,6)), perm=perm)
+        for(i in 1:6^3){
+            x <- (i-1) %% 6 + 1
+            y <- floor((i-1)%%72 / 12) + 1
+            z <- 2*floor((i-1)/72) + ((i-1)%%12 >= 6) + 1
+            my.color = color.cube[x,y,z]
 
-        style(fg = 8 * as.numeric(my.color == 16), bg = my.color, mode="xterm-256color")
-        cat(sprintf("%4s", my.color))
-        if(i %% 6 == 0 && i %% 12 != 0){
-            style.clear()
-            cat("  ")
+            cat(style(fg = 8 * as.numeric(my.color == 16), bg = my.color, mode="xterm-256color"))
+            cat(sprintf("%4s", my.color))
+            if(i %% 6 == 0 && i %% 12 != 0){
+                style.clear()
+                cat("  ")
+            }
+            if(i %% (2*6) == 0){
+                style.clear()
+                cat("\n")
+            }
+            if(i %% (2*6*6) == 0)
+                cat("\n")
         }
-        if(i %% (2*6) == 0){
+        
+        ## 16 
+        for(i in 0:1) {
+            for(j in 0:11){
+                cat(style(fg = (238 + j) * as.numeric(i == 0), bg = 232 + i * 12 +j, mode="xterm-256color"))
+                cat(sprintf("%4s", 232 + i * 12 +j))
+            }
             style.clear()
             cat("\n")
         }
-        if(i %% (2*6*6) == 0)
-            cat("\n")
-    }
-    
-    ## 16 
-    for(i in 0:1) {
-        for(j in 0:11){
-            style(fg = (238 + j) * as.numeric(i == 0), bg = 232 + i * 12 +j, mode="xterm-256color")
-            cat(sprintf("%4s", 232 + i * 12 +j))
-        }
-        style.clear()
-        cat("\n")
-    }
-    options(style.mode = my.mode)
+        options(style.mode = my.mode)
+    }, interrupt = function(...) cat(style.clear()))
 }
 #' @rdname display.xterm.colors
 #' @export
 display.ansi.colors <- function(numbers=TRUE){
-    my.mode <- getOption("style.mode")
-    ## 16 ANSI colours
-    for(i in 0:1) {
-        for(j in 0:7){
-            style(fg = 8 * as.numeric(i == 0 & j == 0), bg = i * 8 + j, mode="ansi")
-            cat(sprintf("%4s", i * 8 + j))
+    tryCatch({
+        my.mode <- getOption("style.mode")
+        ## 16 ANSI colours
+        for(i in 0:1) {
+            for(j in 0:7){
+                cat(style(fg = 8 * as.numeric(i == 0 & j == 0), bg = i * 8 + j, mode="ansi"))
+                cat(sprintf("%4s", i * 8 + j))
+            }
+            style.clear()
+            cat("\n")
         }
-        style.clear()
         cat("\n")
-    }
-    cat("\n")
-    options(style.mode = my.mode)
+        options(style.mode = my.mode)
+    }, interrupt = function(...) cat(style.clear()))
 }
 
 
@@ -94,7 +98,7 @@ display.ansi.colors <- function(numbers=TRUE){
 #'                  labels=c("apple", "grapes", "banana", "lemon",
 #'                           "blueberry", "raspberry"))
 #' for(i in 1:length(fruits))
-#'     style(fruits[i], "\n", fg=pal[fruits[i]])
+#'     cat(style(fruits[i], "\n", fg=pal[fruits[i]]))
 #'
 #' @seealso display.xterm.pal, display.xterm.colors
 #' @author Christofer \enc{Bäcklin}{Backlin}
@@ -168,24 +172,23 @@ display.xterm.pal <- function(){
     pal <- xterm.pal()
 
     nc <- max(nchar(names(pal)))
-    cat("\n")
-    for(i in 1:length(pal)){
-        cat(sprintf(sprintf("%%%is: ", nc), names(pal)[i]))
-        terminal.width <- if(Sys.getenv("COLUMNS") == "") 80 else as.integer(Sys.getenv("COLUMNS"))
-        cols.per.line <- floor((terminal.width - nc - 2) / 4)
-        n.lines <- ceiling(length(pal[[i]]) / cols.per.line)
-        cols.per.line <- ceiling(length(pal[[i]]) / n.lines)
-        for(j in 1:length(pal[[i]])){
-            style(bg=pal[[i]][j])
-            cat(sprintf("%4i", pal[[i]][j]))
-            if(j %% cols.per.line == 0){
-                style.clear()
-                cat(sprintf(sprintf("\n%%%is", nc+2), ""))
-            }
-        }
-        style.clear()
-        cat("\n")
+    terminal.width <- if(Sys.getenv("COLUMNS") == ""){
+        getOption("width", 80)
+    } else {
+        as.integer(Sys.getenv("COLUMNS"))
     }
+    cols.per.line <- floor((terminal.width - nc - 2) / 4)
+    tryCatch({
+        for(i in 1:length(pal)){
+            cat(sprintf(sprintf("\n%%%is: ", nc), names(pal)[i]))
+            for(j in 1:length(pal[[i]])){
+                if(j > 1 && j %% cols.per.line == 1)
+                    cat(style.clear(), sprintf(sprintf("\n%%%is", nc+2), ""))
+                cat(style(bg=pal[[i]][j]), sprintf("%4i", pal[[i]][j]), sep="")
+            }
+            cat(style.clear(), "\n", sep="")
+        }
+    }, interrupt = function(...) cat(style.clear()))
 }
 
 #' Map numbers onto a palette
