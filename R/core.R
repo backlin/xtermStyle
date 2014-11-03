@@ -1,3 +1,4 @@
+# Package load hook that set up the default options
 .onLoad <- function(lib, pkg){
     sn <- tolower(Sys.info()["sysname"])
     term <- tolower(Sys.getenv("TERM"))
@@ -10,6 +11,7 @@
         # Presumably linux or unix
         options(style.mode = "xterm-256color")
     }
+    style.palette("dark")
 }
 
 #' Color termnal output
