@@ -3,13 +3,13 @@
     sn <- tolower(Sys.info()["sysname"])
     term <- tolower(Sys.getenv("TERM"))
     if(term %in% c("ansi", "apple_terminal")){
-        options(style.mode = "ansi")
+        options(style = "ansi")
     } else if(sn == "windows" || term == "") {
         # RStudio also ends up here
-        options(style.mode = "off")
+        options(style = "off")
     } else {
         # Presumably linux or unix
-        options(style.mode = "xterm-256color")
+        options(style = "xterm-256color")
     }
     style.palette("dark")
 }
@@ -39,15 +39,14 @@
 #' cat("but not anymore!")
 #' @author Christofer \enc{Bäcklin}{Backlin}
 #' @export
-style <- function(..., fg=NA, bg=NA, font=NA, mode=c("xterm-256color", "ansi", "off")) {
-    mode <- if(missing(mode)){
-        getOption("style.mode", "xterm-256color")
-    } else {
-        match.arg(mode)
-    }
-    if(mode == "off"){
-        if(!missing(...)) structure(paste(...), class="xtermStyle")
-        return(invisible())
+style <- function(..., fg=NA, bg=NA, font=NA, mode=c("xterm-256color", "ansi", "off")){
+    if(is.null(getOption("style")))
+        options(style=match.arg(mode))
+    if(missing(mode)){
+        mode <- getOption("style")
+    } else if(missing(...)){
+        options(style = mode)
+        if(mode != "off") options(style.if.on = mode)
     }
 
     named.colors <- switch(mode,
@@ -55,9 +54,12 @@ style <- function(..., fg=NA, bg=NA, font=NA, mode=c("xterm-256color", "ansi", "
         `xterm-256color` = c("black", "dark red", "dark green", "dark yellow",
                              "dark blue", "dark magenta", "dark cyan", "grey",
                              "dark grey", "red", "green", "yellow", "blue",
-                             "magenta", "cyan", "white", "white"),
+                             "magenta", "cyan", "white"),
         character(0)
     )
+    if(is.null(fg)) fg <- NA
+    if(is.null(bg)) bg <- NA
+    if(is.null(font)) font <- NA
     if(is.character(fg)) fg <- match(fg, named.colors)-1
     if(is.character(bg)) bg <- match(bg, named.colors)-1
 
@@ -85,6 +87,8 @@ style <- function(..., fg=NA, bg=NA, font=NA, mode=c("xterm-256color", "ansi", "
             if(!is.na(fg)) sprintf("\033[%im", 30 + xterm256.to.ansi(fg)) else NULL,
             if(!is.na(bg)) sprintf("\033[%im", 40 + xterm256.to.ansi(bg)) else NULL
         )
+    } else {
+        escape.str <- ""
     }
     if(!is.na(font)) escape.str <- c(escape.str, sprintf("\033[%im", font))
 
@@ -102,7 +106,12 @@ style <- function(..., fg=NA, bg=NA, font=NA, mode=c("xterm-256color", "ansi", "
 style.clear <- function(...) style("", ...)
 #' @export
 #' @rdname style
-style.off <- function() style(mode="off")
+style.off <- function()
+    options(style = "off")
+#' @export
+#' @rdname style
+style.on <- function()
+    options(style = getOption("style.if.on"))
 
 #' Print a style object
 #'
@@ -118,61 +127,76 @@ print.xtermStyle <- function(x, ...){
 #' Define the palette for auto-styling
 #'
 #' @param x Palette name or definition.
+#' @param ... Settings that override the defaults.
 #' @return Nothing, sets the approprite \code{\link{options}} variables.
-#' @seealso style.auto
+#' @examples
+#' style.palette("light")
+#' style.palette(list(fg=c(numeric=10, character=13)))
+#' style.palette("light", fg=c(numeric=10, character=13))
+#' @seealso style.auto, display.xterm.colors
 #' @author Christofer \enc{Bäcklin}{Backlin}
 #' @export
-style.palette <- function(x=c("dark", "light")){
-    if(missing(x)) x <- match.arg(x)
+style.palette <- function(x, ...){
     if(is.character(x)){
-        options(style.palette = switch(x,
-            dark = list(
-                fg = c(
-                    null = 246,    # grey
-                    character = 2, # green
-                    numeric = 6,   # cyan
-                    factor = 5,    # magenta
-                    logical = 3,   # yellow
-                    list = 1,      # red
-                    `function` = 4 # blue
-                ),
-                bg = c(
-                    scalar = NA,
-                    vector = 255,
-                    matrix = 195,
-                    array = 224
-                ),
-                levels = xterm.pal()$paired[c(FALSE, TRUE)],
-                range = xterm.pal()$DownUp,
-                logical = xterm.pal()$Accent[c(5,3)]
-            ),
-            light = list(
-                fg = c(
-                    null = 236,     # Dark grey
-                    character = 10, # green
-                    numeric = 14,   # cyan
-                    factor = 13,    # magenta
-                    logical = 11,   # yellow
-                    list = 9,       # red
-                    `function` = 33 # blue
-                ),
-                bg = c(
-                    scalar = NA,
-                    vector = 235,
-                    matrix = 18,
-                    array = 88
-                ),
-                levels = xterm.pal()$paired[c(TRUE, FALSE)],
-                range = xterm.pal()$long,
-                logical = xterm.pal()$Accent[2:1]
-            ),
-            list(fg=character(0), bg=character(0)) # Invalid palette name
-        ))
-    } else if(is.list(x)){
-        options(style.palette = x)  # The user gave his/her own palette
-    } else {
+        x <- get.palette(x)
+    } else if(missing(x)){
+        x <- getOption("style.palette", list())
+    } else if(!is.list(x)){
         stop("Invalid palette")
     }
+    if(!missing(...)){
+        l <- list(...)
+        stopifnot(all(sapply(l, is.vector)))
+        x[names(l)] <- Map(function(x, y) c(x, y[!names(y) %in% names(x)]),
+                           l, x[names(l)])
+    }
+    options(style.palette = x)
+}
+#' @rdname style.palette
+#' @export
+get.palette <- function(x = c("dark", "light")){
+    switch(match.arg(x),
+        dark = list(
+            fg = c(
+                null = 246,    # grey
+                character = 2, # green
+                numeric = 6,   # cyan
+                factor = 5,    # magenta
+                logical = 3,   # yellow
+                list = 1,      # red
+                `function` = 4 # blue
+            ),
+            bg = c(
+                scalar = NA,
+                vector = 255,
+                matrix = 195,
+                array = 224
+            ),
+            levels = xterm.pal()$paired[c(FALSE, TRUE)],
+            range = xterm.pal()$DownUp,
+            logical = xterm.pal()$Accent[c(5,3)]
+        ),
+        light = list(
+            fg = c(
+                null = 236,     # Dark grey
+                character = 10, # green
+                numeric = 14,   # cyan
+                factor = 13,    # magenta
+                logical = 11,   # yellow
+                list = 9,       # red
+                `function` = 33 # blue
+            ),
+            bg = c(
+                scalar = NA,
+                vector = 235,
+                matrix = 18,
+                array = 88
+            ),
+            levels = xterm.pal()$paired[c(TRUE, FALSE)],
+            range = xterm.pal()$long,
+            logical = xterm.pal()$Accent[2:1]
+        )
+    )
 }
 
 #' Automatic styling according to object properties.
@@ -184,9 +208,7 @@ style.palette <- function(x=c("dark", "light")){
 #' @author Christofer \enc{Bäcklin}{Backlin}
 #' @export
 style.auto <- function(x, ...){
-    if(is.null(getOption("style.palette", NULL)))
-        style.palette("dark")
-    pal <- getOption("style.palette")
+    pal <- getOption("style.palette", get.palette("dark"))
     
     fg <- pal$fg[
         if(is.null(x)) "null"
