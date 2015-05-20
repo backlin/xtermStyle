@@ -22,7 +22,7 @@ display.xterm.colors <- function(perm=1:3) {
         for(i in 0:1) {
             for(j in 0:7){
                 cat(style(fg = 8 * as.numeric(i == 0 & j == 0), bg = i * 8 + j, mode="xterm-256color"))
-                cat(sprintf("%4i", j*8+i))
+                cat(sprintf("%4i", i*8+j))
             }
             style.clear()
             cat("\n")
@@ -39,14 +39,10 @@ display.xterm.colors <- function(perm=1:3) {
 
             cat(style(fg = 8 * as.numeric(my.color == 16), bg = my.color, mode="xterm-256color"))
             cat(sprintf("%4s", my.color))
-            if(i %% 6 == 0 && i %% 12 != 0){
-                style.clear()
-                cat("  ")
-            }
-            if(i %% (2*6) == 0){
-                style.clear()
-                cat("\n")
-            }
+            if(i %% 6 == 0 && i %% 12 != 0)
+                cat(style.clear(), "  ")
+            if(i %% (2*6) == 0)
+                cat(style.clear(), "\n")
             if(i %% (2*6*6) == 0)
                 cat("\n")
         }
@@ -57,8 +53,7 @@ display.xterm.colors <- function(perm=1:3) {
                 cat(style(fg = (238 + j) * as.numeric(i == 0), bg = 232 + i * 12 +j, mode="xterm-256color"))
                 cat(sprintf("%4s", 232 + i * 12 +j))
             }
-            style.clear()
-            cat("\n")
+            cat(style.clear(), "\n")
         }
         options(style.mode = my.mode)
     }, interrupt = function(...) cat(style.clear()))
@@ -218,3 +213,21 @@ discrete.color <- function(x, range=range(x), pal="GnRd"){
     pal[findInterval(x, seq(range[1], range[2], length=n.pal+1)[2:n.pal])+1]
 }
 
+#' Convert xterm256 color code to ansi code
+#' 
+#' @param x Integer specifying xterm256 color.
+#' @return Integer that approximates \code{x} in the ansi palette.
+#' @author Christofer \enc{Bäcklin}{Backlin}
+#' @export
+xterm256.to.ansi <- function(x){
+    x <- as.integer(x)
+    if(x < 16){
+        x %% 8
+    } else if(x < 232){
+        binary.color <- round( c((x-16) %% 6, floor((x-16) %% 36 / 6), floor((x-16) / 36)) / 5)
+        # Correspons to blue, green, red
+        sum(c(4,2,1)*binary.color)
+    } else {
+        7 * (x > 243)
+    }
+}
