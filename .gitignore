@@ -3,3 +3,5 @@ xtermStyle.Rcheck
 *.Rapp.history
 *~
 *.swp
+*.txt
+pack.r

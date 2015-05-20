@@ -72,17 +72,6 @@ style <- function(..., fg=NA, bg=NA, font=NA, mode=c("xterm-256color", "ansi", "
             if(!is.na(bg)) sprintf("\033[48;5;%im", bg) else NULL
         )
     } else if(mode == "ansi"){
-        xterm256.to.ansi <- function(x){
-            if(x < 16){
-                x %% 8
-            } else if(x < 232){
-                binary.color <- round( c((x-16) %% 6, floor((x-16) %% 36 / 6), floor((x-16) / 36)) / 5)
-                # Correspons to blue, green, red
-                sum(c(4,2,1)*binary.color)
-            } else {
-                7 * (fg > 243)
-            }
-        }
         escape.str <- c(
             if(!is.na(fg)) sprintf("\033[%im", 30 + xterm256.to.ansi(fg)) else NULL,
             if(!is.na(bg)) sprintf("\033[%im", 40 + xterm256.to.ansi(bg)) else NULL
